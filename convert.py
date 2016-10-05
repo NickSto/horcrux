@@ -5,9 +5,11 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import sys
 import math
+import getpass
 import argparse
 
-ARG_DEFAULTS = {}
+HEX_ONLY_DIGITS = '0789ABCDEFabcdef'
+ARG_DEFAULTS = {'group_length':5}
 USAGE = "%(prog)s [options]"
 DESCRIPTION = """"""
 
@@ -17,32 +19,72 @@ def main(argv):
   parser = argparse.ArgumentParser(description=DESCRIPTION)
   parser.set_defaults(**ARG_DEFAULTS)
 
-  parser.add_argument('input')
+  parser.add_argument('input', nargs='?')
+  parser.add_argument('-e', '--echo', action='store_true',
+    help='When entering the input interactively, show it on-screen instead of hiding it.')
   parser.add_argument('-x', '--to-hex', action='store_true')
   parser.add_argument('-s', '--to-senary', action='store_true')
   parser.add_argument('-d', '--senary-digits', type=int)
+  parser.add_argument('-w', '--word-list', type=argparse.FileType('r'),
+    help='Use this word list to print out the words as well.')
+  parser.add_argument('-l', '--group-length', type=int,
+    help='The number of senary digits per word. Default: %(default)s')
 
   args = parser.parse_args(argv[1:])
 
-  input_condensed = args.input.replace(' ', '')
+  if args.input:
+    input_raw = args.input
+  elif args.echo:
+    sys.stdout.write('Input: ')
+    input_raw = sys.stdin.readline().rstrip('\r\n')
+  else:
+    try:
+      input_raw = getpass.getpass(prompt='Input: ')
+    except EOFError:
+      print()
+      return 1
+
+  input = input_raw.replace(' ', '')
+
+  if not input:
+    fail('Error: input is empty.')
+
+  if args.to_hex:
+    destination = 'hex'
+  elif args.to_senary:
+    destination = 'senary'
+  else:
+    input_type = 'senary'
+    for char in input:
+      if char in HEX_ONLY_DIGITS:
+        input_type = 'hex'
+        break
+    if input_type == 'hex':
+      destination = 'senary'
+    else:
+      destination = 'hex'
+    sys.stderr.write('Destination format not specified. Inferred input type is {}. Converting to '
+                     '{}.\n'.format(input_type, destination))
 
   if args.senary_digits:
     senary_digits = args.senary_digits
     hex_digits = digits_conv(senary_digits, 6, 16)
-  elif args.to_hex:
-    senary_digits = len(input_condensed)
+  elif destination == 'hex':
+    senary_digits = len(input)
     hex_digits = digits_conv(senary_digits, 6, 16)
-  elif args.to_senary:
-    hex_digits = len(input_condensed)
+  elif destination == 'senary':
+    hex_digits = len(input)
     senary_digits = digits_conv(hex_digits, 16, 6, round='floor')
 
-  if args.to_hex:
-    senary_base0 = base1_to_base0(input_condensed)
+  if destination == 'hex':
+    senary_base0 = base1_to_base0(input)
     print(senary_to_hex(senary_base0, width=hex_digits))
-  elif args.to_senary:
-    print(hex_to_senary_base1(input_condensed, width=senary_digits))
-  else:
-    fail('Error: Choose --to-hex or --to-senary.')
+  elif destination == 'senary':
+    senary = hex_to_senary_base1(input, width=senary_digits)
+    print(senary)
+    if args.word_list:
+      word_map = read_word_list(args.word_list)
+      print_words(senary, word_map, args.group_length)
 
 
 def base1_to_base0(senary_str_base1):
@@ -84,6 +126,34 @@ def digits_conv(digits_in, in_base, out_base, round='ceil'):
     return int(math.ceil(digits_out))
   elif round == 'floor':
     return int(math.floor(digits_out))
+
+
+def read_word_list(word_list):
+  word_map = {}
+  for line in word_list:
+    fields = line.rstrip('\r\n').split()
+    try:
+      key, word = fields
+    except ValueError:
+      continue
+    word_map[key] = word
+  return word_map
+
+
+def print_words(senary, word_map, group_length=5):
+  words = []
+  for i in range(0, len(senary), group_length):
+    if i+group_length > len(senary):
+      sys.stderr.write('Error: Number of digits ({}) in {} not a multiple of --group-length ({}).\n'
+                       .format(len(senary), senary, group_length))
+      break
+    senary_word = senary[i:i+group_length]
+    try:
+      words.append(word_map[senary_word])
+    except KeyError:
+      sys.stderr.write('Error: word corresponding to '+senary_word+' not found.\n')
+      continue
+  print(' '.join(words))
 
 
 def fail(message):
