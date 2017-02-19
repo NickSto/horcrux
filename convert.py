@@ -5,11 +5,12 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import sys
 import math
+import random
 import getpass
 import argparse
 
 HEX_ONLY_DIGITS = '0789ABCDEFabcdef'
-ARG_DEFAULTS = {'group_length':5}
+ARG_DEFAULTS = {'num_words':5, 'group_length':5}
 USAGE = "%(prog)s [options]"
 DESCRIPTION = """"""
 
@@ -22,18 +23,34 @@ def main(argv):
   parser.add_argument('input', nargs='?')
   parser.add_argument('-e', '--echo', action='store_true',
     help='When entering the input interactively, show it on-screen instead of hiding it.')
-  parser.add_argument('-x', '--to-hex', action='store_true')
-  parser.add_argument('-s', '--to-senary', action='store_true')
+  parser.add_argument('-r', '--random', action='store_true',
+    help='Use random input instead of a user-supplied number. WARNING: Currently the source of '
+         'randomness is completely insecure.')
+  parser.add_argument('-b', '--base', dest='input_base', choices=('senary', 'hex'),
+    help='Specify the input base. Will attempt to detect it otherwise.')
+  parser.add_argument('-x', '--to-hex', dest='output_base', action='store_const', const='hex',
+    help='Return output in hexadecimal.')
+  parser.add_argument('-s', '--to-senary', dest='output_base', action='store_const', const='senary',
+    help='Return output in senary.')
   parser.add_argument('-d', '--senary-digits', type=int)
-  parser.add_argument('-w', '--word-list', type=argparse.FileType('r'),
-    help='Use this word list to print out the words as well.')
+  parser.add_argument('-n', '--num-words', type=int,
+    help='When generating random input, create enough for this many words.')
   parser.add_argument('-l', '--group-length', type=int,
     help='The number of senary digits per word. Default: %(default)s')
+  parser.add_argument('-w', '--word-list', type=argparse.FileType('r'),
+    help='Use this word list to print out the words as well.')
 
   args = parser.parse_args(argv[1:])
 
   if args.input:
     input_raw = args.input
+  elif args.random:
+    sys.stderr.write('WARNING: Random generation is completely insecure. For testing only.\n')
+    if args.senary_digits:
+      senary_digits = args.senary_digits
+    else:
+      senary_digits = args.num_words * args.group_length
+    input_raw = ''.join([random.choice('123456') for i in range(senary_digits)])
   elif args.echo:
     sys.stdout.write('Input: ')
     input_raw = sys.stdin.readline().rstrip('\r\n')
@@ -49,42 +66,65 @@ def main(argv):
   if not input:
     fail('Error: input is empty.')
 
-  if args.to_hex:
-    destination = 'hex'
-  elif args.to_senary:
-    destination = 'senary'
+  # Detect input format, if needed.
+  if args.input_base:
+    input_base = args.input_base
+  elif args.random:
+    input_base = 'senary'
   else:
-    input_type = 'senary'
-    for char in input:
-      if char in HEX_ONLY_DIGITS:
-        input_type = 'hex'
-        break
-    if input_type == 'hex':
-      destination = 'senary'
-    else:
-      destination = 'hex'
-    sys.stderr.write('Destination format not specified. Inferred input type is {}. Converting to '
-                     '{}.\n'.format(input_type, destination))
+    input_base = detect_base(input)
+    sys.stderr.write('Input base not specified. Inferred input type is {}.\n'.format(input_base))
 
+  # What should the output format be?
+  if args.output_base:
+    output_base = args.output_base
+  elif args.random:
+    output_base = 'senary'
+  elif input_base == 'hex':
+    output_base = 'senary'
+  elif input_base == 'senary':
+    output_base = 'hex'
+
+  # Determine the width of the hex and senary numbers.
   if args.senary_digits:
     senary_digits = args.senary_digits
     hex_digits = digits_conv(senary_digits, 6, 16)
-  elif destination == 'hex':
+  elif input_base == 'senary':
     senary_digits = len(input)
     hex_digits = digits_conv(senary_digits, 6, 16)
-  elif destination == 'senary':
+  elif input_base == 'hex':
     hex_digits = len(input)
     senary_digits = digits_conv(hex_digits, 16, 6, round='floor')
 
-  if destination == 'hex':
-    senary_base0 = base1_to_base0(input)
-    print(senary_to_hex(senary_base0, width=hex_digits))
-  elif destination == 'senary':
-    senary = hex_to_senary_base1(input, width=senary_digits)
-    print(senary)
-    if args.word_list:
-      word_map = read_word_list(args.word_list)
-      print_words(senary, word_map, args.group_length)
+  # Determine the output. Do conversion, if needed.
+  if input_base == 'senary':
+    senary = input
+    if output_base == 'hex':
+      senary_base0 = base1_to_base0(senary)
+      output = senary_to_hex(senary_base0, width=hex_digits)
+    elif output_base == 'senary':
+      output = senary
+  elif input_base == 'hex':
+    # Convert to senary, even if that's not the output format, in case it's needed for the word list.
+    senary = hex_to_senary(input, width=senary_digits, base=1)
+    if output_base == 'senary':
+      output = senary
+    elif output_base == 'hex':
+      output = input
+
+  print(output)
+  if args.word_list:
+    word_map = read_word_list(args.word_list)
+    print_words(senary, word_map, args.group_length)
+
+
+def detect_base(input):
+  base = 'senary'
+  for char in input:
+    if char in HEX_ONLY_DIGITS:
+      base = 'hex'
+      break
+  return base
 
 
 def base1_to_base0(senary_str_base1):
@@ -106,14 +146,15 @@ def senary_to_hex(senary_str, width=None):
   return hex_str
 
 
-def hex_to_senary_base1(hex_str, width=None):
+def hex_to_senary(hex_str, width=None, base=0):
+  all_digits = range(base, base+6)
   decimal = int(hex_str, 16)
   # Adapted from https://stackoverflow.com/questions/2267362/convert-integer-to-a-string-in-a-given-numeric-base-in-python/2267446#2267446
   digits = []
   while decimal:
-    digits.append('123456'[decimal % 6])
+    digits.append(all_digits[decimal % 6])
     decimal //= 6
-  senary = ''.join(reversed(digits))
+  senary = ''.join(map(str, reversed(digits)))
   if width is not None:
     senary = '1' * (width - len(senary)) + senary
   return senary
