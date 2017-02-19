@@ -3,9 +3,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
+import os
 import sys
 import math
-import random
 import getpass
 import argparse
 
@@ -24,8 +24,8 @@ def main(argv):
   parser.add_argument('-e', '--echo', action='store_true',
     help='When entering the input interactively, show it on-screen instead of hiding it.')
   parser.add_argument('-r', '--random', action='store_true',
-    help='Use random input instead of a user-supplied number. WARNING: Currently the source of '
-         'randomness is completely insecure.')
+    help='Use random input instead of a user-supplied number. Gets randomness from os.urandom() '
+         '(/dev/urandom on Linux).')
   parser.add_argument('-b', '--base', dest='input_base', choices=('senary', 'hex'),
     help='Specify the input base. Will attempt to detect it otherwise.')
   parser.add_argument('-x', '--to-hex', dest='output_base', action='store_const', const='hex',
@@ -45,12 +45,11 @@ def main(argv):
   if args.input:
     input_raw = args.input
   elif args.random:
-    sys.stderr.write('WARNING: Random generation is completely insecure. For testing only.\n')
     if args.senary_digits:
       senary_digits = args.senary_digits
     else:
       senary_digits = args.num_words * args.group_length
-    input_raw = ''.join([random.choice('123456') for i in range(senary_digits)])
+    input_raw = get_rand_senary(senary_digits, base=1)
   elif args.echo:
     sys.stdout.write('Input: ')
     input_raw = sys.stdin.readline().rstrip('\r\n')
@@ -195,6 +194,17 @@ def print_words(senary, word_map, group_length=5):
       sys.stderr.write('Error: word corresponding to '+senary_word+' not found.\n')
       continue
   print(' '.join(words))
+
+
+def get_rand_senary(length, base=0):
+  """Get "length" random senary digits from a secure source (os.urandom)."""
+  senary_digits = []
+  for i in range(length):
+    byte_str = os.urandom(3)
+    bytes = [ord(b) for b in byte_str]
+    byte_sum = sum(bytes)
+    senary_digits.append(byte_sum % 6 + base)
+  return ''.join(map(str, senary_digits))
 
 
 def fail(message):
