@@ -9,8 +9,9 @@ import math
 import getpass
 import argparse
 
+WORDLIST_NAME = 'words.txt'
 HEX_ONLY_DIGITS = '0789ABCDEFabcdef'
-ARG_DEFAULTS = {'num_words':5, 'group_length':5}
+ARG_DEFAULTS = {'num_words':5, 'group_length':5, 'output':True}
 USAGE = "%(prog)s [options]"
 DESCRIPTION = """"""
 
@@ -32,15 +33,29 @@ def main(argv):
     help='Return output in hexadecimal.')
   parser.add_argument('-s', '--to-senary', dest='output_base', action='store_const', const='senary',
     help='Return output in senary.')
+  parser.add_argument('-N', '--no-num', dest='output', action='store_false',
+    help='Don\'t print the output number (usually only useful when you want words).')
   parser.add_argument('-d', '--senary-digits', type=int)
   parser.add_argument('-n', '--num-words', type=int,
     help='When generating random input, create enough for this many words.')
   parser.add_argument('-l', '--group-length', type=int,
     help='The number of senary digits per word. Default: %(default)s')
-  parser.add_argument('-w', '--word-list', type=argparse.FileType('r'),
-    help='Use this word list to print out the words as well.')
+  parser.add_argument('-w', '--words', action='store_true',
+    help='Also print words corresponding to the output number.')
+  parser.add_argument('-W', '--word-list',
+    help='Use this Diceware-formatted word list. Defaults to a file in the script\'s directory '
+         'named "{}".'.format(WORDLIST_NAME))
 
   args = parser.parse_args(argv[1:])
+
+  if args.words:
+    if args.word_list:
+      word_list = args.word_list
+    else:
+      script_dir = os.path.dirname(os.path.realpath(__file__))
+      word_list = os.path.join(script_dir, WORDLIST_NAME)
+    if not os.path.isfile(word_list):
+      raise IOError('Word list "{}" not found.'.format(word_list))
 
   if args.input:
     input_raw = args.input
@@ -111,9 +126,10 @@ def main(argv):
     elif output_base == 'hex':
       output = input
 
-  print(output)
-  if args.word_list:
-    word_map = read_word_list(args.word_list)
+  if args.output:
+    print(output)
+  if args.words:
+    word_map = read_word_list(word_list)
     print_words(senary, word_map, args.group_length)
 
 
@@ -168,15 +184,16 @@ def digits_conv(digits_in, in_base, out_base, round='ceil'):
     return int(math.floor(digits_out))
 
 
-def read_word_list(word_list):
+def read_word_list(word_list_path):
   word_map = {}
-  for line in word_list:
-    fields = line.rstrip('\r\n').split()
-    try:
-      key, word = fields
-    except ValueError:
-      continue
-    word_map[key] = word
+  with open(word_list_path, 'rU') as word_list:
+    for line in word_list:
+      fields = line.rstrip('\r\n').split()
+      try:
+        key, word = fields
+      except ValueError:
+        continue
+      word_map[key] = word
   return word_map
 
 
