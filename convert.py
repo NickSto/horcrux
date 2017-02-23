@@ -213,14 +213,27 @@ def print_words(senary, word_map, group_length=5):
   print(' '.join(words))
 
 
-def get_rand_senary(length, base=0):
-  """Get "length" random senary digits from a secure source (os.urandom)."""
+def get_rand_senary(ndigits, base=0):
+  """Get a string of ndigits random numbers between base and base+5 from os.urandom()."""
+  # Algorithm from https://stackoverflow.com/questions/137783/expand-a-random-range-from-1-5-to-1-7/891304#891304
   senary_digits = []
-  for i in range(length):
-    byte_str = os.urandom(3)
-    bytes = [ord(b) for b in byte_str]
-    byte_sum = sum(bytes)
-    senary_digits.append(byte_sum % 6 + base)
+  state = 0
+  pow1 = 1
+  pow2 = 6
+  while len(senary_digits) < ndigits:
+    if state // pow1 == (state + pow2) // pow1:
+      result = state // pow1
+      state = (state - result * pow1) * 6
+      pow2 *= 6
+      senary_digits.append(result+base)
+    else:
+      state = 256 * state + pow2 * ord(os.urandom(1))
+      pow1 *= 256
+    # Keep the size of the huge numbers under a googol so it doesn't slow to a crawl.
+    if pow1 > 10e100 or pow2 > 10e100:
+      pow1 = 1
+      pow2 = 6
+      state = 0
   return ''.join(map(str, senary_digits))
 
 
