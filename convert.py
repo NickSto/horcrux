@@ -121,7 +121,8 @@ def main(argv):
     print(output)
   if args.words:
     word_map = read_word_list(word_list)
-    print_words(senary, word_map, args.group_length)
+    words = get_words(senary, word_map, args.group_length)
+    print(*words, sep=' ')
 
 
 def detect_base(input):
@@ -196,7 +197,7 @@ def read_word_list(word_list_path):
   return word_map
 
 
-def print_words(senary, word_map, group_length=5):
+def get_words(senary, word_map, group_length=5):
   words = []
   for i in range(0, len(senary), group_length):
     if i+group_length > len(senary):
@@ -209,7 +210,17 @@ def print_words(senary, word_map, group_length=5):
     except KeyError:
       sys.stderr.write('Error: word corresponding to '+senary_word+' not found.\n')
       continue
-  print(' '.join(words))
+  return words
+
+
+def hex_to_words(hex, word_list, group_length=5):
+  try:
+    senary = hex_to_senary(hex, base=1)
+  except ValueError:
+    return None
+  senary = pad_number(senary, group_length, base=1)
+  word_map = read_word_list(word_list)
+  return get_words(senary, word_map, group_length)
 
 
 def get_rand_senary(ndigits, base=0):
