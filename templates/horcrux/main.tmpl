@@ -1,0 +1,29 @@
+{% extends 'bootstrap.tmpl' %}
+{% load staticfiles %}
+
+{% block title %}Horcrux{% endblock %}
+
+{% block stylesheet %}
+  <link rel="stylesheet" href="{% static 'horcrux/css/main.css' %}?via=html">
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+
+      <h2 id="title">Horcruxes</h2>
+
+      <section class="panel panel-shrink">
+        <div class="panel-heading">
+          <h4>Horcruxes</h4>
+        </div>
+        <div class="panel-body">
+          <p>
+            What version horcruxes are these?
+            <a class="btn btn-default" href="{% url 'horcrux:shares' %}?version=1">1</a>
+            <a class="btn btn-default" href="{% url 'horcrux:shares' %}?version=2">2</a>
+          </p>
+        </div>
+      </section>
+
+    </div>
+{% endblock content %}

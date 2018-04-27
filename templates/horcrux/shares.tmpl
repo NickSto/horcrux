@@ -1,0 +1,50 @@
+{% extends 'bootstrap.tmpl' %}
+{% load staticfiles %}
+
+{% block title %}Horcrux{% endblock %}
+
+{% block stylesheet %}
+  <link rel="stylesheet" href="{% static 'horcrux/css/main.css' %}?via=html">
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+
+      <h2 id="title">Horcruxes</h2>
+
+      <section class="panel panel-shrink">
+        <div class="panel-heading">
+          <h4>Enter the codes</h4>
+        </div>
+        <form class="panel-body" method="post" action="{% url 'horcrux:combine' %}">
+          <h4>Horcrux version {{ version }}</h4>
+          <p>Include the number and dash in front of each code, e.g. "1-a9ab3fc225".</p>
+          {% csrf_token %}
+          <input type="hidden" name="version" value="{{ version }}">
+          {% if version == 1 %}
+            <div>
+              <textarea name="share1"></textarea>
+            </div>
+            <div>
+              <textarea name="share2"></textarea>
+            </div>
+            <div>
+              <textarea name="share3"></textarea>
+            </div>
+          {% elif version == 2 %}
+            <div>
+              <input type="text" name="share1" autocomplete="off">
+            </div>
+            <div>
+              <input type="text" name="share2" autocomplete="off">
+            </div>
+            <div>
+              <input type="text" name="share3" autocomplete="off">
+            </div>
+          {% endif %}
+          <input type="submit" value="Submit">
+        </form>
+      </section>
+
+    </div>
+{% endblock content %}

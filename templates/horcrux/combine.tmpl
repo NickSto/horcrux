@@ -1,0 +1,33 @@
+{% extends 'bootstrap.tmpl' %}
+{% load staticfiles %}
+
+{% block title %}Horcrux{% endblock %}
+
+{% block stylesheet %}
+  <link rel="stylesheet" href="{% static 'horcrux/css/main.css' %}?via=html">
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+
+      <h2 id="title">Horcruxes</h2>
+
+      <section class="panel panel-shrink">
+        <div class="panel-heading">
+          <h3>The Password</h3>
+        </div>
+        <div class="panel-body">
+          {% if password %}
+            <h4>{{ password }}</h4>
+          {% elif error %}
+            <h4>Error</h4>
+            <p>{{ error }}</p>
+          {% endif %}
+          <div>
+            <a class="btn btn-default" href="{% url 'horcrux:main' %}">Restart</a>
+          </div>
+        </div>
+      </section>
+
+    </div>
+{% endblock content %}
