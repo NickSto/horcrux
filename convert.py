@@ -99,28 +99,19 @@ def main(argv):
   elif input_base == 'senary':
     output_base = 'hex'
 
-  # Determine the width of the hex and senary numbers.
-  if args.senary_digits:
-    senary_digits = args.senary_digits
-    hex_digits = digits_conv(senary_digits, 6, 16)
-  elif input_base == 'senary':
-    senary_digits = len(input)
-    hex_digits = digits_conv(senary_digits, 6, 16)
-  elif input_base == 'hex':
-    hex_digits = len(input)
-    senary_digits = digits_conv(hex_digits, 16, 6, round='floor')
-
   # Determine the output. Do conversion, if needed.
   if input_base == 'senary':
     senary = input
     if output_base == 'hex':
       senary_base0 = base1_to_base0(senary)
-      output = senary_to_hex(senary_base0, width=hex_digits)
+      output = senary_to_hex(senary_base0)
     elif output_base == 'senary':
       output = senary
   elif input_base == 'hex':
     # Convert to senary, even if that's not the output format, in case it's needed for the word list.
-    senary = hex_to_senary(input, width=senary_digits, base=1)
+    senary = hex_to_senary(input, width=args.senary_digits, base=1)
+    if args.senary_digits is None:
+      senary = pad_number(senary, args.group_length, base=1)
     if output_base == 'senary':
       output = senary
     elif output_base == 'hex':
@@ -182,6 +173,14 @@ def digits_conv(digits_in, in_base, out_base, round='ceil'):
     return int(math.ceil(digits_out))
   elif round == 'floor':
     return int(math.floor(digits_out))
+
+
+def pad_number(number, group_length=5, base=0):
+  pad_digits = group_length - (len(number) % group_length)
+  if pad_digits == group_length:
+    return number
+  else:
+    return str(base) * pad_digits + number
 
 
 def read_word_list(word_list_path):
