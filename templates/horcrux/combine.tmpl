@@ -18,7 +18,14 @@
         </div>
         <div class="panel-body">
           {% if password %}
-            <h4>{{ password }}</h4>
+            {% if version == 1 or version == 2 %}
+              <h4>{{ password }}</h4>
+            {% else %}
+              <h4>Lastpass</h4>
+              <p>{{ password }}</p>
+              <h4>Veracrypt</h4>
+              <p>{{ password2 }}</p>
+            {% endif %}
           {% elif error %}
             <h4>Error</h4>
             <p>{{ error }}</p>
