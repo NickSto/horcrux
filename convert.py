@@ -10,7 +10,8 @@ import getpass
 import argparse
 
 WORDLIST_NAME = 'words.txt'
-HEX_ONLY_DIGITS = '0789ABCDEFabcdef'
+HEX_DIGITS = '0123456789ABCDEFabcdef'
+SENARY_DIGITS = '0123456'
 ARG_DEFAULTS = {'num_words':5, 'group_length':5, 'output':True}
 USAGE = "%(prog)s [options]"
 DESCRIPTION = """"""
@@ -21,34 +22,33 @@ def main(argv):
   parser = argparse.ArgumentParser(description=DESCRIPTION)
   parser.set_defaults(**ARG_DEFAULTS)
 
-  parser.add_argument('input', nargs='?')
+  parser.add_argument('input', nargs='*',
+    help='The input hex, senary, or words. Can be given in multiple arguments (e.g. one argument '
+         'per word, or senary group).')
   parser.add_argument('-e', '--echo', action='store_true',
     help='When entering the input interactively, show it on-screen instead of hiding it.')
   parser.add_argument('-r', '--random', action='store_true',
     help='Use random input instead of a user-supplied number. Gets randomness from os.urandom() '
          '(/dev/urandom on Linux).')
-  parser.add_argument('-b', '--base', dest='input_base', choices=('senary', 'hex'),
-    help='Specify the input base. Will attempt to detect it otherwise.')
-  parser.add_argument('-x', '--to-hex', dest='output_base', action='store_const', const='hex',
-    help='Return output in hexadecimal.')
-  parser.add_argument('-s', '--to-senary', dest='output_base', action='store_const', const='senary',
-    help='Return output in senary.')
-  parser.add_argument('-N', '--no-num', dest='output', action='store_false',
-    help='Don\'t print the output number (usually only useful when you want words).')
-  parser.add_argument('-d', '--senary-digits', type=int)
+  parser.add_argument('-i', '--in-format', choices=('senary', 'hex', 'words'),
+    help='Specify the input format. Will attempt to detect it if not given. Senary input must be '
+         'in base 1 (digits 1-6).')
+  parser.add_argument('-o', '--out-format', choices=('senary', 'hex', 'words'))
+  parser.add_argument('-d', '--senary-digits', type=int,
+    help='The number of senary digits the output should have (its "width").')
   parser.add_argument('-n', '--num-words', type=int,
     help='When generating random input, create enough for this many words.')
   parser.add_argument('-l', '--group-length', type=int,
     help='The number of senary digits per word. Default: %(default)s')
   parser.add_argument('-w', '--words', action='store_true',
-    help='Also print words corresponding to the output number.')
+    help='Print words in addition to the selected --out-format.')
   parser.add_argument('-W', '--word-list',
     help='Use this Diceware-formatted word list. Defaults to a file in the script\'s directory '
          'named "{}".'.format(WORDLIST_NAME))
 
   args = parser.parse_args(argv[1:])
 
-  if args.words:
+  if args.words or args.in_format == 'words' or args.out_format == 'words':
     if args.word_list:
       word_list = args.word_list
     else:
@@ -58,7 +58,7 @@ def main(argv):
       raise IOError('Word list "{}" not found.'.format(word_list))
 
   if args.input:
-    input_raw = args.input
+    input_raw = ' '.join(args.input)
   elif args.random:
     if args.senary_digits:
       senary_digits = args.senary_digits
@@ -75,62 +75,74 @@ def main(argv):
       print()
       return 1
 
-  input = input_raw.replace(' ', '')
+  # Detect input format, if needed.
+  if args.in_format:
+    in_format = args.in_format
+  elif args.random:
+    in_format = 'senary'
+  else:
+    in_format = detect_base(input_raw)
+    sys.stderr.write('Input base not specified. Inferred input type is {}.\n'.format(in_format))
+
+  if in_format == 'words':
+    input = input_raw
+  else:
+    input = input_raw.replace(' ', '')
 
   if not input:
     fail('Error: input is empty.')
 
-  # Detect input format, if needed.
-  if args.input_base:
-    input_base = args.input_base
-  elif args.random:
-    input_base = 'senary'
-  else:
-    input_base = detect_base(input)
-    sys.stderr.write('Input base not specified. Inferred input type is {}.\n'.format(input_base))
-
   # What should the output format be?
-  if args.output_base:
-    output_base = args.output_base
+  if args.out_format:
+    out_format = args.out_format
   elif args.random:
-    output_base = 'senary'
-  elif input_base == 'hex':
-    output_base = 'senary'
-  elif input_base == 'senary':
-    output_base = 'hex'
+    out_format = 'senary'
+  elif in_format == 'hex':
+    out_format = 'senary'
+  elif in_format == 'senary':
+    out_format = 'hex'
+  elif in_format == 'words':
+    out_format = 'senary'
 
-  # Determine the output. Do conversion, if needed.
-  if input_base == 'senary':
+  # Convert the input into base 1 senary.
+  if in_format == 'senary':
     senary = input
-    if output_base == 'hex':
-      senary_base0 = base1_to_base0(senary)
-      output = senary_to_hex(senary_base0)
-    elif output_base == 'senary':
-      output = senary
-  elif input_base == 'hex':
-    # Convert to senary, even if that's not the output format, in case it's needed for the word list.
+  elif in_format == 'hex':
     senary = hex_to_senary(input, width=args.senary_digits, base=1)
-    if args.senary_digits is None:
-      senary = pad_number(senary, args.group_length, base=1)
-    if output_base == 'senary':
-      output = senary
-    elif output_base == 'hex':
-      output = input
+  elif in_format == 'words':
+    words = input.split()
+    reverse_word_map = read_word_list(word_list, reverse=True)
+    senary = words_to_senary(words, reverse_word_map)
+
+  senary = pad_number(senary, width=args.senary_digits, group_length=args.group_length, base=1)
+
+  # Convert the base 1 senary into the output format.
+  if out_format == 'senary':
+    output = senary
+  elif out_format == 'hex':
+    output = senary_to_hex(senary, base=1)
+  elif out_format == 'words':
+    word_map = read_word_list(word_list)
+    words = senary_to_words(senary, word_map, group_length=args.group_length)
+    output = ' '.join(words)
 
   if args.output:
     print(output)
+
   if args.words:
     word_map = read_word_list(word_list)
-    words = get_words(senary, word_map, args.group_length)
-    print(*words, sep=' ')
+    words = senary_to_words(senary, word_map, group_length=args.group_length)
+    print(' '.join(words))
 
 
 def detect_base(input):
   base = 'senary'
-  for char in input:
-    if char in HEX_ONLY_DIGITS:
-      base = 'hex'
-      break
+  for char in input.replace(' ', ''):
+    if char not in HEX_DIGITS:
+      base = 'words'
+    elif char not in SENARY_DIGITS:
+      if base != 'words':
+        base = 'hex'
   return base
 
 
@@ -143,8 +155,12 @@ def base1_to_base0(senary_str_base1):
   return senary_str_base0
 
 
-def senary_to_hex(senary_str, width=None):
-  decimal = int(senary_str, 6)
+def senary_to_hex(senary_str, width=None, base=0):
+  if base == 1:
+    senary = base1_to_base0(senary_str)
+  else:
+    senary = senary_str
+  decimal = int(senary, 6)
   if width is None:
     hex_str = '{:x}'.format(decimal)
   else:
@@ -176,15 +192,20 @@ def digits_conv(digits_in, in_base, out_base, round='ceil'):
     return int(math.floor(digits_out))
 
 
-def pad_number(number, group_length=5, base=0):
-  pad_digits = group_length - (len(number) % group_length)
-  if pad_digits == group_length:
-    return number
+def pad_number(number_str, width=None, group_length=5, base=0):
+  if width:
+    pad_digits = width - len(number_str)
   else:
-    return str(base) * pad_digits + number
+    pad_digits = group_length - (len(number_str) % group_length)
+  if pad_digits <= 0:
+    return number_str
+  if pad_digits == group_length:
+    return number_str
+  else:
+    return str(base) * pad_digits + number_str
 
 
-def read_word_list(word_list_path):
+def read_word_list(word_list_path, reverse=False):
   word_map = {}
   with open(word_list_path, 'rU') as word_list:
     for line in word_list:
@@ -192,35 +213,73 @@ def read_word_list(word_list_path):
       try:
         key, word = fields
       except ValueError:
+        sys.stderr.write('Error: Wrong number of fields in line {!r}'.format(line))
         continue
-      word_map[key] = word
+      if reverse:
+        word_map[word] = key
+      else:
+        word_map[key] = word
   return word_map
 
 
-def get_words(senary, word_map, group_length=5):
+def senary_to_words(senary, word_map, group_length=5, width=None):
+  """Translate a base 1 senary string to words.
+  The word map should be the output of read_word_list() with reverse=False."""
+  print('Translating {} to words..'.format(senary))
+  if width or group_length:
+    senary = pad_number(senary, base=1, width=width, group_length=group_length)
   words = []
   for i in range(0, len(senary), group_length):
     if i+group_length > len(senary):
-      sys.stderr.write('Error: Number of digits ({}) in {} not a multiple of --group-length ({}).\n'
+      raise ValueError('Error: Number of digits ({}) in {} not a multiple of group_length ({}).'
                        .format(len(senary), senary, group_length))
-      break
     senary_word = senary[i:i+group_length]
     try:
       words.append(word_map[senary_word])
-    except KeyError:
-      sys.stderr.write('Error: word corresponding to '+senary_word+' not found.\n')
-      continue
+    except KeyError as error:
+      error.args = ('Word corresponding to '+senary_word+' not found.',)
+      raise error
   return words
 
 
-def hex_to_words(hex, word_list, group_length=5):
+def words_to_senary(words, reverse_word_map):
+  """Translate a list of words to a senary string.
+  The word map should be the output of read_word_list() with reverse=True."""
+  senary = ''
+  for word in words:
+    try:
+      senary += reverse_word_map[word]
+    except KeyError as error:
+      error.args = ('Word {!r} not found in word list.'.format(word),)
+      raise error
+  return senary
+
+
+def hex_to_words(hex, word_map, group_length=5, width=None):
+  """Translate a hex string to a list of words.
+  The word map should be the output of read_word_list() with reverse=False.
+  Returns None on failure."""
   try:
     senary = hex_to_senary(hex, base=1)
   except ValueError:
+    sys.stderr.write('ValueError converting hex {!r} to senary.\n'.format(hex))
     return None
   senary = pad_number(senary, group_length, base=1)
-  word_map = read_word_list(word_list)
-  return get_words(senary, word_map, group_length)
+  return senary_to_words(senary, word_map, group_length=group_length, width=width)
+
+
+def words_to_hex(words, reverse_word_map, base=1):
+  """Input: A list of words, and a reverse word map (output of read_word_list() with reverse=True).
+  Set `base` to 0 if the numbers in the word list file are 0-5 instead of 1-6.
+  Returns None on failure."""
+  senary = words_to_senary(words, reverse_word_map)
+  if base == 1:
+    senary = base1_to_base0(senary)
+  try:
+    return senary_to_hex(senary)
+  except ValueError:
+    sys.stderr.write('ValueError converting senary {!r} to hex.\n'.format(senary))
+    return None
 
 
 def get_rand_senary(ndigits, base=0):
