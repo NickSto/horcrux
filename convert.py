@@ -12,40 +12,47 @@ import argparse
 WORDLIST_NAME = 'words.txt'
 HEX_DIGITS = '0123456789ABCDEFabcdef'
 SENARY_DIGITS = '0123456'
-ARG_DEFAULTS = {'num_words':5, 'group_length':5, 'output':True}
 USAGE = "%(prog)s [options]"
-DESCRIPTION = """"""
+DESCRIPTION = """Convert diceware rolls to words and back again, as well as compressing them into
+hexadecimal representation."""
+EPILOG = """There is the possibility of losing a word when converting from hex or senary. Basically,
+when the senary representation has leading zeros (dice rolls of 1), they're lost upon conversion
+intenally to an integer. So we have to guess how many zeros to add back in later. In practice, this
+isn't an issue, since if each word is made of 5 rolls, we know we just have to pad it out to a
+multiple of 5. Words are only lost if there are actually five 1's in a row, which has a 1 in 7776
+chance of happening. But if you're using a really low --group-length, beware."""
 
 
-def main(argv):
-
-  parser = argparse.ArgumentParser(description=DESCRIPTION)
-  parser.set_defaults(**ARG_DEFAULTS)
-
+def make_argparser():
+  parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG)
   parser.add_argument('input', nargs='*',
     help='The input hex, senary, or words. Can be given in multiple arguments (e.g. one argument '
          'per word, or senary group).')
+  parser.add_argument('-i', '--in-format', choices=('senary', 'hex', 'words'),
+    help='Specify the input format. Will attempt to detect it if not given. Senary is a base 6 '
+         'number, except using digits 1-6. So "21445", for example.')
+  parser.add_argument('-o', '--out-format', choices=('senary', 'hex', 'words'))
   parser.add_argument('-e', '--echo', action='store_true',
     help='When entering the input interactively, show it on-screen instead of hiding it.')
   parser.add_argument('-r', '--random', action='store_true',
     help='Use random input instead of a user-supplied number. Gets randomness from os.urandom() '
          '(/dev/urandom on Linux).')
-  parser.add_argument('-i', '--in-format', choices=('senary', 'hex', 'words'),
-    help='Specify the input format. Will attempt to detect it if not given. Senary input must be '
-         'in base 1 (digits 1-6).')
-  parser.add_argument('-o', '--out-format', choices=('senary', 'hex', 'words'))
   parser.add_argument('-d', '--senary-digits', type=int,
     help='The number of senary digits the output should have (its "width").')
-  parser.add_argument('-n', '--num-words', type=int,
-    help='When generating random input, create enough for this many words.')
-  parser.add_argument('-l', '--group-length', type=int,
+  parser.add_argument('-l', '--group-length', type=int, default=5,
     help='The number of senary digits per word. Default: %(default)s')
+  parser.add_argument('-n', '--num-words', type=int, default=6,
+    help='When generating random input, create enough for this many words.')
   parser.add_argument('-w', '--words', action='store_true',
     help='Print words in addition to the selected --out-format.')
   parser.add_argument('-W', '--word-list',
     help='Use this Diceware-formatted word list. Defaults to a file in the script\'s directory '
          'named "{}".'.format(WORDLIST_NAME))
+  return parser
 
+
+def main(argv):
+  parser = make_argparser()
   args = parser.parse_args(argv[1:])
 
   if args.words or args.in_format == 'words' or args.out_format == 'words':
@@ -126,10 +133,9 @@ def main(argv):
     words = senary_to_words(senary, word_map, group_length=args.group_length)
     output = ' '.join(words)
 
-  if args.output:
-    print(output)
+  print(output)
 
-  if args.words:
+  if args.words and out_format != 'words':
     word_map = read_word_list(word_list)
     words = senary_to_words(senary, word_map, group_length=args.group_length)
     print(' '.join(words))
@@ -225,7 +231,6 @@ def read_word_list(word_list_path, reverse=False):
 def senary_to_words(senary, word_map, group_length=5, width=None):
   """Translate a base 1 senary string to words.
   The word map should be the output of read_word_list() with reverse=False."""
-  print('Translating {} to words..'.format(senary))
   if width or group_length:
     senary = pad_number(senary, base=1, width=width, group_length=group_length)
   words = []
