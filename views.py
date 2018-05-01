@@ -1,6 +1,7 @@
 import configparser
 import os
 import logging
+import shutil
 import subprocess
 from django.conf import settings
 from django.shortcuts import render
@@ -66,10 +67,15 @@ def combine(request):
     elif params['version'] == 2:
       if os.path.exists(WORD_LIST_PATH):
         words_hex = combine_shares(shares, threshold, hex=True)
-        words = convert.hex_to_words(words_hex, WORD_LIST_PATH, group_length=GROUP_LENGTH)
-        password = ' '.join(words)
+        word_map = convert.read_word_list(WORD_LIST_PATH)
+        try:
+          words = convert.hex_to_words(words_hex, word_map, group_length=GROUP_LENGTH)
+          password = ' '.join(words)
+        except ValueError:
+          error = 'Combined horcruxes to get {!r}, but could not convert to password words.'
       else:
         error = "Couldn't find word list file on the server."
+      #TODO: Detect if the password is just numbers, which indicates the user entered version 1 codes.
     elif params['version'] == 3:
       if os.path.exists(VAULT_PATH):
         vault_password = combine_shares(shares, threshold, hex=True)
@@ -80,6 +86,7 @@ def combine(request):
     else:
       return HttpResponseRedirect(reverse('horcrux:main'))
   except HorcruxError as exception:
+    log.error('HorcruxError {!r}: {}'.format(exception.type, exception.message))
     if exception.type == 'binary':
       error = 'Wrong input type. Are you sure you selected the right version?'
     elif exception.type == 'inconsistent':
@@ -87,8 +94,16 @@ def combine(request):
     elif exception.type == 'syntax':
       error = ('Invalid code(s). Make sure there was no typo, and that you included the number and '
                'dash in front of each one.')
+    elif exception.type == 'lengths':
+      error = ("Invalid code(s). Were they different lengths? Check to make sure you didn't miss "
+               "a character.")
+    elif exception.type == 'ssss_missing':
+      error = ('Could not combine the horcruxes. The "ssss" program may not be installed on '
+               'the server.')
+    elif exception.type == 'ssss_output_unknown':
+      error = 'Unknown problem encountered when combining the horcruxes.'
     elif exception.type == 'wrong_key':
-      error = 'Incorrect key. Check for typos in the codes you entered.'
+      error = 'Wrong key. Check for typos in the codes you entered.'
     else:
       error = 'Encountered error {!r}: {}.'.format(exception.type, exception.message)
   if error:
@@ -100,15 +115,21 @@ def combine(request):
 ##### Functions #####
 
 def combine_shares(shares, threshold, hex=True):
+  command = 'ssss-combine'
+  if not shutil.which(command):
+    raise HorcruxError('ssss_missing', 'Could not find the command {!r}.'.format(command))
   shares_bytes = [bytes(share, 'utf8') for share in shares]
   stdin = b'\n'.join(shares_bytes)+b'\n'
   if hex:
-    command = ['ssss-combine', '-x']
+    command_line = [command, '-x']
   else:
-    command = ['ssss-combine']
-  process = subprocess.Popen(command + ['-t', str(threshold)],
-                             stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-  stdout, stderr = process.communicate(input=stdin)
+    command_line = [command]
+  try:
+    process = subprocess.Popen(command_line + ['-t', str(threshold)],
+                               stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate(input=stdin)
+  except subprocess.SubprocessError as error:
+    raise HorcruxError('ssss_subprocess', 'Problem executing ssss: {}'.format(error.args[0]))
   return parse_ssss_output(stderr)
 
 
@@ -129,9 +150,14 @@ def parse_ssss_output(stderr_bytes):
         raise HorcruxError('syntax', 'Invalid shares.')
       elif 'invalid share' in line:
         raise HorcruxError('syntax', 'Invalid shares.')
+      elif 'different security levels' in line:
+        raise HorcruxError('lengths', 'Shares have different security levels (lengths).')
     elif line.startswith('Resulting secret: '):
       secret = line[18:]
-  return secret
+  if secret is None:
+    raise HorcruxError('ssss_output_unknown', 'No valid output found.')
+  else:
+    return secret
 
 
 def decrypt_vault(vault_path, vault_password):
