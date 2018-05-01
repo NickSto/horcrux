@@ -7,7 +7,9 @@ import os
 import sys
 import math
 import getpass
+import logging
 import argparse
+log = logging.getLogger(__name__)
 
 WORDLIST_NAME = 'words.txt'
 HEX_DIGITS = '0123456789ABCDEFabcdef'
@@ -48,12 +50,22 @@ def make_argparser():
   parser.add_argument('-W', '--word-list',
     help='Use this Diceware-formatted word list. Defaults to a file in the script\'s directory '
          'named "{}".'.format(WORDLIST_NAME))
+  parser.add_argument('-L', '--log', type=argparse.FileType('w'), default=sys.stderr,
+    help='Print log messages to this file instead of to stderr. Warning: Will overwrite the file.')
+  volume = parser.add_mutually_exclusive_group()
+  volume.add_argument('-q', '--quiet', dest='volume', action='store_const', const=logging.CRITICAL,
+    default=logging.WARNING)
+  volume.add_argument('-v', '--verbose', dest='volume', action='store_const', const=logging.INFO)
+  volume.add_argument('-D', '--debug', dest='volume', action='store_const', const=logging.DEBUG)
   return parser
 
 
 def main(argv):
+
   parser = make_argparser()
   args = parser.parse_args(argv[1:])
+
+  logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
   if args.words or args.in_format == 'words' or args.out_format == 'words':
     if args.word_list:
@@ -89,7 +101,7 @@ def main(argv):
     in_format = 'senary'
   else:
     in_format = detect_base(input_raw)
-    sys.stderr.write('Input base not specified. Inferred input type is {}.\n'.format(in_format))
+    log.warning('Input base not specified. Inferred input type is {}.'.format(in_format))
 
   if in_format == 'words':
     input = input_raw
@@ -219,7 +231,7 @@ def read_word_list(word_list_path, reverse=False):
       try:
         key, word = fields
       except ValueError:
-        sys.stderr.write('Error: Wrong number of fields in line {!r}'.format(line))
+        log.warning('Error: Wrong number of fields in line {!r}'.format(line))
         continue
       if reverse:
         word_map[word] = key
@@ -266,9 +278,9 @@ def hex_to_words(hex, word_map, group_length=5, width=None):
   Returns None on failure."""
   try:
     senary = hex_to_senary(hex, base=1)
-  except ValueError:
-    sys.stderr.write('ValueError converting hex {!r} to senary.\n'.format(hex))
-    return None
+  except ValueError as error:
+    error.args = ('ValueError converting hex {!r} to senary.'.format(hex),)
+    raise error
   senary = pad_number(senary, group_length, base=1)
   return senary_to_words(senary, word_map, group_length=group_length, width=width)
 
@@ -282,9 +294,9 @@ def words_to_hex(words, reverse_word_map, base=1):
     senary = base1_to_base0(senary)
   try:
     return senary_to_hex(senary)
-  except ValueError:
-    sys.stderr.write('ValueError converting senary {!r} to hex.\n'.format(senary))
-    return None
+  except ValueError as error:
+    error.args = ('ValueError converting senary {!r} to hex.'.format(senary),)
+    raise error
 
 
 def get_rand_senary(ndigits, base=0):
@@ -312,8 +324,11 @@ def get_rand_senary(ndigits, base=0):
 
 
 def fail(message):
-  sys.stderr.write(message+"\n")
-  sys.exit(1)
+  logging.critical(message)
+  if __name__ == '__main__':
+    sys.exit(1)
+  else:
+    raise Exception('Unrecoverable error')
 
 
 if __name__ == '__main__':
