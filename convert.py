@@ -268,6 +268,7 @@ def words_to_senary(words, reverse_word_map):
       senary += reverse_word_map[word]
     except KeyError as error:
       error.args = ('Word {!r} not found in word list.'.format(word),)
+      error.value = word
       raise error
   return senary
 
@@ -280,6 +281,7 @@ def hex_to_words(hex, word_map, group_length=5, width=None):
     senary = hex_to_senary(hex, base=1)
   except ValueError as error:
     error.args = ('ValueError converting hex {!r} to senary.'.format(hex),)
+    error.value = hex
     raise error
   senary = pad_number(senary, group_length, base=1)
   return senary_to_words(senary, word_map, group_length=group_length, width=width)
@@ -295,7 +297,8 @@ def words_to_hex(words, reverse_word_map, base=1):
   try:
     return senary_to_hex(senary)
   except ValueError as error:
-    error.args = ('ValueError converting senary {!r} to hex.'.format(senary),)
+    error.args = ('Problem converting senary {!r} to hex.'.format(senary),)
+    error.value = senary
     raise error
 
 

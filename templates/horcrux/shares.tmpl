@@ -41,6 +41,19 @@
             <div>
               <input type="text" name="share3" autocomplete="off">
             </div>
+          {% elif version == 4 %}
+            <div>
+              <input type="text" name="share1-id">
+              <input type="text" name="share1" autocomplete="off">
+            </div>
+            <div>
+              <input type="text" name="share2-id">
+              <input type="text" name="share2" autocomplete="off">
+            </div>
+            <div>
+              <input type="text" name="share3-id">
+              <input type="text" name="share3" autocomplete="off">
+            </div>
           {% endif %}
           <input type="submit" value="Submit">
         </form>

@@ -1,3 +1,4 @@
+import collections
 import configparser
 import os
 import logging
@@ -15,20 +16,22 @@ log = logging.getLogger(__name__)
 # How many dice rolls per word.
 GROUP_LENGTH = 5
 # How many horcruxes are required to recover the secret. Keys are versions.
-THRESHOLDS = {1: 3, 2: 3, 3: 3}
+THRESHOLDS = collections.defaultdict(lambda: 3)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 WORD_LIST_PATH = os.path.join(SCRIPT_DIR, 'words.txt')
 VAULT_PATH = os.path.join(SCRIPT_DIR, 'vault.enc')
 
 
 class HorcruxError(Exception):
-  def __init__(self, type, message=None):
+  def __init__(self, type, message=None, **kwargs):
     self.type = type
     self.message = message
     if self.message is None:
       self.args = (self.type,)
     else:
       self.args = (self.message,)
+    for key, value in kwargs.items():
+      setattr(self, key, value)
 
 
 ##### Views #####
@@ -39,9 +42,8 @@ def main(request):
 
 def shares(request):
   params = QueryParams()
-  params.add('version', type=int, choices=(1, 2, 3))
+  params.add('version', type=int, choices=(1, 2, 3, 4))
   params.parse(request.GET)
-  log.info(str(params.keys()))
   if not params['version']:
     return HttpResponseRedirect(reverse('horcrux:main'))
   context = {'version':params['version']}
@@ -50,16 +52,21 @@ def shares(request):
 
 def combine(request):
   params = QueryParams()
-  params.add('version', type=int, choices=(1, 2, 3))
+  params.add('version', type=int, choices=(1, 2, 3, 4))
   params.parse(request.POST)
   error = None
   password = None
   password2 = None
+  # Gather the shares.
   shares = []
+  share_ids = []
   for i in range(15):
     share_key = 'share{}'.format(i)
     if share_key in params:
-      shares.append(params[share_key])
+      shares.append(params[share_key].strip())
+    share_id_key = 'share{}-id'.format(i)
+    if share_id_key in params:
+      share_ids.append(params[share_id_key].strip())
   threshold = THRESHOLDS[params['version']]
   try:
     if params['version'] == 1:
@@ -76,7 +83,9 @@ def combine(request):
       else:
         error = "Couldn't find word list file on the server."
       #TODO: Detect if the password is just numbers, which indicates the user entered version 1 codes.
-    elif params['version'] == 3:
+    elif params['version'] in (3, 4):
+      if params['version'] == 4:
+        shares = word_shares_to_hex(shares, share_ids, WORD_LIST_PATH)
       if os.path.exists(VAULT_PATH):
         vault_password = combine_shares(shares, threshold, hex=True)
         plaintext = decrypt_vault(VAULT_PATH, vault_password)
@@ -87,7 +96,11 @@ def combine(request):
       return HttpResponseRedirect(reverse('horcrux:main'))
   except HorcruxError as exception:
     log.error('HorcruxError {!r}: {}'.format(exception.type, exception.message))
-    if exception.type == 'binary':
+    if exception.type == 'invalid_word':
+      error = 'Invalid word {!r}. Did you type it correctly?'.format(exception.value)
+    elif exception.type == 'invalid_senary':
+      error = 'Error converting words to decryption key.'
+    elif exception.type == 'binary':
       error = 'Wrong input type. Are you sure you selected the right version?'
     elif exception.type == 'inconsistent':
       error = 'Inconsistent codes. Did you enter one of them twice?'
@@ -100,10 +113,15 @@ def combine(request):
     elif exception.type == 'ssss_missing':
       error = ('Could not combine the horcruxes. The "ssss" program may not be installed on '
                'the server.')
+    elif exception.type == 'ssss_command':
+      error = ('Could not combine the horcruxes. There was a problem executing the "ssss" program '
+               'on the server.')
     elif exception.type == 'ssss_output_unknown':
-      error = 'Unknown problem encountered when combining the horcruxes.'
+      error = ('Could not combine the horcruxes. There was a problem interpreting the output of the '
+               '"ssss" program.')
     elif exception.type == 'wrong_key':
-      error = 'Wrong key. Check for typos in the codes you entered.'
+      error = ('Combined the horcruxes, but got the wrong output. Check for typos in the codes you '
+               'entered.')
     else:
       error = 'Encountered error {!r}: {}.'.format(exception.type, exception.message)
   if error:
@@ -113,6 +131,30 @@ def combine(request):
 
 
 ##### Functions #####
+
+
+def word_shares_to_hex(shares_words, share_ids, word_list_path):
+  reverse_word_map = convert.read_word_list(word_list_path, reverse=True)
+  max_len = 0
+  shares_hex = []
+  for words in shares_words:
+    try:
+      hex = convert.words_to_hex(words.split(), reverse_word_map, base=1)
+    except ValueError as error:
+      raise HorcruxError('invalid_senary', 'Problem converting senary {!r} to hex.'.format(error.value),
+                         value=error.value)
+    except KeyError as error:
+      raise HorcruxError('invalid_word', 'Word {!r} not found in word list.'.format(error.value),
+                         value=error.value)
+    max_len = max(max_len, len(hex))
+    shares_hex.append(hex)
+  for i in range(len(shares_hex)):
+    shares_hex[i] = convert.pad_number(shares_hex[i], width=max_len, base=0)
+  shares = []
+  for share_id, share_hex in zip(share_ids, shares_hex):
+    shares.append('{}-{}'.format(share_id, share_hex))
+  return shares
+
 
 def combine_shares(shares, threshold, hex=True):
   command = 'ssss-combine'
@@ -129,7 +171,7 @@ def combine_shares(shares, threshold, hex=True):
                                stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate(input=stdin)
   except subprocess.SubprocessError as error:
-    raise HorcruxError('ssss_subprocess', 'Problem executing ssss: {}'.format(error.args[0]))
+    raise HorcruxError('ssss_command', 'Problem executing ssss: {}'.format(error.args[0]))
   return parse_ssss_output(stderr)
 
 
