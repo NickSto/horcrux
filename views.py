@@ -46,6 +46,8 @@ ERROR_MESSAGES['ssss_output_unknown'] = ('Could not combine the horcruxes. There
                                          'interpreting the output of the "ssss" program.')
 ERROR_MESSAGES['wrong_key'] = ('Combined the horcruxes, but got the wrong output. Check for typos '
                                'in the codes you entered (including in the numbers before the dashes.')
+ERROR_MESSAGES['empty_vault'] = ('Successfully combined the horcruxes and decrypted the vault file '
+                                 'on the server, but it was empty.')
 
 
 class HorcruxError(Exception):
@@ -273,6 +275,8 @@ def decrypt_vault(vault_path, vault_password):
 
 def parse_vault(vault_contents):
   #TODO: Catch exceptions due to incorrect format.
+  if not vault_contents or not vault_contents.strip():
+    raise HorcruxError('empty_vault', 'Encrypted vault was decrypted, but empty.')
   config = configparser.RawConfigParser()
   config.read_string(vault_contents)
   secrets = {}
