@@ -83,21 +83,20 @@ def combine(request):
   params.add('version', type=int, choices=(1, 2, 3, 4))
   params.parse(request.POST)
   error = None
-  password = None
-  password2 = None
+  secrets = {}
   threshold = THRESHOLDS[params['version']]
   try:
     # Gather the shares.
     shares = gather_shares(params, threshold, WORD_LIST_PATH)
     if params['version'] == 1:
-      password = combine_shares(shares, threshold, hex=False)
+      secrets['lastpass'] = combine_shares(shares, threshold, hex=False)
     elif params['version'] == 2:
       if os.path.exists(WORD_LIST_PATH):
         words_hex = combine_shares(shares, threshold, hex=True)
         word_map = convert.read_word_list(WORD_LIST_PATH)
         try:
           words = convert.hex_to_words(words_hex, word_map, group_length=GROUP_LENGTH)
-          password = ' '.join(words)
+          secrets['lastpass'] = ' '.join(words)
         except ValueError:
           error = ('Combined horcruxes to get {!r}, but could not convert to the actual password.'
                    .format(words_hex))
@@ -117,7 +116,7 @@ def combine(request):
       vault_password = combine_shares(shares, threshold, hex=True)
       if os.path.exists(VAULT_PATH):
         plaintext = decrypt_vault(VAULT_PATH, vault_password)
-        password, password2 = parse_vault(plaintext)
+        secrets.update(parse_vault(plaintext))
       else:
         error = ("Couldn't find encrypted vault file on the server, but successfully combined the "
                  "horcruxes to obtain its password: {!r}".format(vault_password))
@@ -128,8 +127,7 @@ def combine(request):
     error = ERROR_MESSAGES[exception.type].format(**vars(exception))
     log.error(error)
   plural = params['version'] > 2
-  context = {'version':params['version'], 'password':password, 'password2':password2,
-             'plural':plural, 'error':error}
+  context = {'version':params['version'], 'secrets':secrets, 'plural':plural, 'error':error}
   return render(request, 'horcrux/combine.tmpl', context)
 
 
@@ -277,6 +275,7 @@ def parse_vault(vault_contents):
   #TODO: Catch exceptions due to incorrect format.
   config = configparser.RawConfigParser()
   config.read_string(vault_contents)
-  lastpass = config.get('passwords', 'lastpass')
-  veracrypt = config.get('passwords', 'veracrypt')
-  return lastpass, veracrypt
+  secrets = {}
+  secrets['lastpass'] = config.get('passwords', 'lastpass')
+  secrets['veracrypt'] = config.get('passwords', 'veracrypt')
+  return secrets
