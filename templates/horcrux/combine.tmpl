@@ -14,9 +14,21 @@
 
       <section class="panel panel-shrink">
         <div class="panel-heading">
-          <h3>The Password{% if version >= 3 %}s{% endif %}</h3>
+          <h3>The Password{% if plural %}s{% endif %}</h3>
         </div>
         <div class="panel-body">
+          {% if error %}
+            <h4>Error</h4>
+            <p>{{ error }}</p>
+          {% else %}
+            <p>Success! Here
+              {% if plural %}
+                are the passwords:
+              {% else %}
+                is the password:
+              {% endif %}
+            </p>
+          {% endif %}
           {% if password %}
             {% if version == 1 or version == 2 %}
               <h4>{{ password }}</h4>
@@ -26,10 +38,6 @@
               <h4>Veracrypt</h4>
               <p>{{ password2 }}</p>
             {% endif %}
-          {% endif %}
-          {% if error %}
-            <h4>Error</h4>
-            <p>{{ error }}</p>
           {% endif %}
           <div>
             <a class="btn btn-default" href="{% url 'horcrux:main' %}">Restart</a>

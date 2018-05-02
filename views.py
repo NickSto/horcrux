@@ -27,9 +27,11 @@ ERROR_MESSAGES['share1_missing'] = ('Could not find the horcrux stored on the se
                                     'to enter 1 additional horcrux.')
 ERROR_MESSAGES['share1_permissions'] = ('Could not read the horcrux stored on the server. You will '
                                         'need to enter 1 additional horcrux.')
+ERROR_MESSAGES['single_word'] = ('Invalid words {value!r}. Looks like a single word. Make sure to '
+                                 'put spaces between the words.')
 ERROR_MESSAGES['invalid_word'] = 'Invalid word {value!r}. Did you type it correctly?'
 ERROR_MESSAGES['invalid_senary'] = 'Error converting words to decryption key.'
-ERROR_MESSAGES['too_few_shares'] = ('Too few horcruxes entered.')
+ERROR_MESSAGES['too_few_shares'] = 'Too few horcruxes entered. I only saw {value!r}.'
 ERROR_MESSAGES['binary'] = 'Wrong input type. Are you sure you selected the right version?'
 ERROR_MESSAGES['inconsistent'] = 'Inconsistent codes. Did you enter one of them twice?'
 ERROR_MESSAGES['syntax'] = ('Invalid code(s). Make sure there was no typo, and that you included '
@@ -70,7 +72,9 @@ def shares(request):
   params.parse(request.GET)
   if not params['version']:
     return HttpResponseRedirect(reverse('horcrux:main'))
-  context = {'version':params['version']}
+  threshold = THRESHOLDS[params['version']]
+  share_nums = range(1, threshold+1)
+  context = {'version':params['version'], 'share_nums':share_nums}
   return render(request, 'horcrux/shares.tmpl', context)
 
 
@@ -81,20 +85,10 @@ def combine(request):
   error = None
   password = None
   password2 = None
-  # Gather the shares.
-  shares = []
-  share_ids = []
-  for i in range(15):
-    share_key = 'share{}'.format(i)
-    share_id_key = 'share{}-id'.format(i)
-    if share_key in params:
-      share_value = params[share_key].strip()
-      share_id_value = params.get(share_id_key, '').strip()
-      if share_value:
-        shares.append(share_value)
-        share_ids.append(share_id_value)
   threshold = THRESHOLDS[params['version']]
   try:
+    # Gather the shares.
+    shares = gather_shares(params, threshold, WORD_LIST_PATH)
     if params['version'] == 1:
       password = combine_shares(shares, threshold, hex=False)
     elif params['version'] == 2:
@@ -105,13 +99,13 @@ def combine(request):
           words = convert.hex_to_words(words_hex, word_map, group_length=GROUP_LENGTH)
           password = ' '.join(words)
         except ValueError:
-          error = 'Combined horcruxes to get {!r}, but could not convert to password words.'
+          error = ('Combined horcruxes to get {!r}, but could not convert to the actual password.'
+                   .format(words_hex))
       else:
         error = "Couldn't find word list file on the server."
       #TODO: Detect if the password is just numbers, which indicates the user entered version 1 codes.
     elif params['version'] in (3, 4):
-      if params['version'] == 4:
-        shares = word_shares_to_hex(shares, share_ids, WORD_LIST_PATH)
+      # Read in the share stored on the server, if needed.
       if len(shares) < threshold:
         try:
           share1 = read_share(SHARE1_PATH)
@@ -119,23 +113,67 @@ def combine(request):
         except HorcruxError:
           if len(shares) < threshold:
             raise
+      # Combine the shares and get the passwords from the vault.
+      vault_password = combine_shares(shares, threshold, hex=True)
       if os.path.exists(VAULT_PATH):
-        vault_password = combine_shares(shares, threshold, hex=True)
         plaintext = decrypt_vault(VAULT_PATH, vault_password)
         password, password2 = parse_vault(plaintext)
       else:
-        error = "Couldn't find encrypted vault file on the server."
+        error = ("Couldn't find encrypted vault file on the server, but successfully combined the "
+                 "horcruxes to obtain its password: {!r}".format(vault_password))
     else:
       return HttpResponseRedirect(reverse('horcrux:main'))
   except HorcruxError as exception:
     log.error('HorcruxError {!r}: {}'.format(exception.type, exception.message))
     error = ERROR_MESSAGES[exception.type].format(**vars(exception))
     log.error(error)
-  context = {'version':params['version'], 'password':password, 'password2':password2, 'error':error}
+  plural = params['version'] > 2
+  context = {'version':params['version'], 'password':password, 'password2':password2,
+             'plural':plural, 'error':error}
   return render(request, 'horcrux/combine.tmpl', context)
 
 
 ##### Functions #####
+
+
+def get_hex_shares(params):
+  hex_shares = []
+  for i in range(15):
+    share_key = 'share{}'.format(i)
+    if share_key in params:
+      share_value = params[share_key].strip()
+      if share_value:
+        hex_shares.append(share_value)
+  return hex_shares
+
+
+def get_word_shares(params):
+  word_shares = []
+  share_ids = []
+  for i in range(15):
+    share_key = 'share{}-words'.format(i)
+    share_id_key = 'share{}-id'.format(i)
+    if share_key in params:
+      share_value = params[share_key].strip()
+      share_id_value = params.get(share_id_key, '').strip()
+      if share_value:
+        if ' ' not in share_value:
+          raise HorcruxError('single_word', 'Invalid words {!r}. No spaces detected.',
+                             value=share_value)
+        word_shares.append(share_value)
+        share_ids.append(share_id_value)
+  return share_ids, word_shares
+
+
+def gather_shares(params, threshold, word_list_path):
+  hex_shares = get_hex_shares(params)
+  share_ids, word_shares = get_word_shares(params)
+  if len(hex_shares) >= threshold:
+    return hex_shares
+  elif len(hex_shares) > len(word_shares):
+    return hex_shares
+  else:
+    return word_shares_to_hex(word_shares, share_ids, word_list_path)
 
 
 def word_shares_to_hex(shares_words, share_ids, word_list_path):
