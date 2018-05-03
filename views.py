@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 # How many dice rolls per word.
 GROUP_LENGTH = 5
 # How many horcruxes are required to recover the secret. Keys are versions.
-THRESHOLDS = collections.defaultdict(lambda: 3)
+THRESHOLDS = {1: 3, 2: 3, 3: 4, 4: 4}
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 WORD_LIST_PATH = os.path.join(SCRIPT_DIR, 'words.txt')
 SHARE1_PATH = os.path.join(SCRIPT_DIR, 'share1.txt')
