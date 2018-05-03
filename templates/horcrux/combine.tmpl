@@ -23,19 +23,29 @@
           {% else %}
             <p>Success! Here
               {% if plural %}
-                are the passwords:
+                are the passwords.
               {% else %}
-                is the password:
+                is the password.
               {% endif %}
+              Make sure to include spaces!
             </p>
           {% endif %}
           {% if secrets.lastpass %}
             <h4>Lastpass</h4>
-            <p>{{ secrets.lastpass }}</p>
+            <code class="secret">{{ secrets.lastpass }}</code>
+            <p>My Lastpass username is {{ lastpass_email }}. You can log in at <a href="https://lastpass.com" target="_blank">https://lastpass.com</a>.</p>
+            <p>If it prompts you to enter values from a "grid", that's a second factor authentication method you can read about <a href="https://helpdesk.lastpass.com/multifactor-authentication-options/grid-multifactor-authentication/" target="_blank">here</a>. You'll need my grid, which is stored in the Veracrypt file.</p>
+            <p>The passwords to almost all my accounts should be in Lastpass. But getting into some accounts requires something in addition to Lastpass:</p>
+            <p>For some important ones like banks, you need to add something extra to the password stored in Lastpass. The way to do that is explained in the Veracrypt file. You should be able to tell when this is required because the site's Lastpass entry will be in the "lastpass + extra" folder.</p>
+            <p>Some accounts require 2-factor authentication. The second factor is often a text message sent to my phone. By the way, my phone PIN is stored in LastPass in a "Secure Note". But sometimes the second factor is a code from the Google Authenticator app (Download for <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_US" target="_blank">Android</a> or <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8" target="_blank">iPhone</a>). For some accounts, you should be able to set up Google Authenticator to give you the code by scanning a barcode I've saved in the Veracrypt file. The barcode should be an image file named by website. Just tap the red plus in the app, then scan the barcode.</p>
           {% endif %}
           {% if secrets.veracrypt %}
             <h4>Veracrypt</h4>
-            <p>{{ secrets.veracrypt }}</p>
+            <code class="secret">{{ secrets.veracrypt }}</code>
+            <p>You can get the Veracrypt file <a href="/static/media/master.hc" target="_blank">here</a>.</p>
+            <p>To open it, you'll need to install Veracrypt from <a href="https://www.veracrypt.fr/en/Downloads.html">here</a>.</p>
+            <p>You can find instructions on using Veracrypt to open the file <a href="https://www.veracrypt.fr/en/Beginner%27s%20Tutorial.html" target="_blank">here</a>, starting at step 13. Don't worry about the "PRF algorithm" in step 18. Just leave it on "Autodetection".</p>
+            <p>This contains all passwords of mine that aren't stored in Lastpass, plus some extra info.</p>
           {% endif %}
           <div>
             <a class="btn btn-default" href="{% url 'horcrux:main' %}">Restart</a>

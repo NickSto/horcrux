@@ -129,7 +129,8 @@ def combine(request):
     error = ERROR_MESSAGES[exception.type].format(**vars(exception))
     log.error(error)
   plural = params['version'] > 2
-  context = {'version':params['version'], 'secrets':secrets, 'plural':plural, 'error':error}
+  context = {'version':params['version'], 'secrets':secrets, 'plural':plural,
+             'lastpass_email':settings.PERSONAL_EMAIL, 'error':error}
   return render(request, 'horcrux/combine.tmpl', context)
 
 
