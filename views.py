@@ -85,7 +85,7 @@ def combine(request):
   params.add('version', type=int, choices=(1, 2, 3))
   params.parse(request.POST)
   error = None
-  secrets = {}
+  secrets = {'lastpass_email':settings.PERSONAL_EMAIL, 'accounts_link':settings.ACCOUNTS_LINK}
   threshold = THRESHOLDS[params['version']]
   try:
     # Gather the shares.
@@ -129,8 +129,7 @@ def combine(request):
     error = ERROR_MESSAGES[exception.type].format(**vars(exception))
     log.error(error)
   plural = params['version'] > 2
-  context = {'version':params['version'], 'secrets':secrets, 'plural':plural,
-             'lastpass_email':settings.PERSONAL_EMAIL, 'error':error}
+  context = {'version':params['version'], 'secrets':secrets, 'plural':plural, 'error':error}
   return render(request, 'horcrux/combine.tmpl', context)
 
 

@@ -17,6 +17,19 @@
   width: 300px;
 }
 
+section.password {
+  margin-top: 20px;
+}
+
 .secret {
-  font-size: 120%;
+  margin-top: 15px;
+  margin-bottom: 10px;
+}
+
+.secret code {
+  font-size: 130%;
+}
+
+.panel nav.footer {
+  padding-top: 15px;
 }
