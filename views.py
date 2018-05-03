@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 # How many dice rolls per word.
 GROUP_LENGTH = 5
 # How many horcruxes are required to recover the secret. Keys are versions.
-THRESHOLDS = {1: 3, 2: 3, 3: 4, 4: 4}
+THRESHOLDS = {1: 3, 2: 3, 3: 4}
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 WORD_LIST_PATH = os.path.join(SCRIPT_DIR, 'words.txt')
 SHARE1_PATH = os.path.join(SCRIPT_DIR, 'share1.txt')
@@ -70,7 +70,7 @@ def main(request):
 
 def shares(request):
   params = QueryParams()
-  params.add('version', type=int, choices=(1, 2, 3, 4))
+  params.add('version', type=int, choices=(1, 2, 3))
   params.parse(request.GET)
   if not params['version']:
     return HttpResponseRedirect(reverse('horcrux:main'))
@@ -82,7 +82,7 @@ def shares(request):
 
 def combine(request):
   params = QueryParams()
-  params.add('version', type=int, choices=(1, 2, 3, 4))
+  params.add('version', type=int, choices=(1, 2, 3))
   params.parse(request.POST)
   error = None
   secrets = {}
@@ -105,7 +105,7 @@ def combine(request):
       else:
         error = "Couldn't find word list file on the server."
       #TODO: Detect if the password is just numbers, which indicates the user entered version 1 codes.
-    elif params['version'] in (3, 4):
+    elif params['version'] == 3:
       # Read in the share stored on the server, if needed.
       if len(shares) < threshold:
         try:

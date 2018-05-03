@@ -17,7 +17,7 @@
           <h3>Enter version {{ version }} horcruxes</h3>
         </div>
         <form class="panel-body" method="post" action="{% url 'horcrux:combine' %}">
-          {% if version == 4 %}
+          {% if version == 3 %}
             <p>You have two options: enter the words of each horcrux, or the code. They both represent the same thing, but the words are easier to type.<p>
             <h4>Words</h4>
             <p>Select the number for each horcrux and enter its words. Make sure to separate each word with a space.</p>
@@ -70,7 +70,6 @@
             <a class="btn btn-default" href="{% url 'horcrux:shares' %}?version=1">1</a>
             <a class="btn btn-default" href="{% url 'horcrux:shares' %}?version=2">2</a>
             <a class="btn btn-default" href="{% url 'horcrux:shares' %}?version=3">3</a>
-            <a class="btn btn-default" href="{% url 'horcrux:shares' %}?version=4">4</a>
           </div>
         </form>
       </section>
