@@ -10,5 +10,9 @@
 }
 
 .share-words {
-  width: 350px;
+  width: 600px;
+}
+
+.share-code {
+  width: 300px;
 }
