@@ -1,5 +1,6 @@
 {% extends 'bootstrap.tmpl' %}
 {% load staticfiles %}
+{% load humanize %}
 
 {% block title %}Horcrux{% endblock %}
 
@@ -17,47 +18,68 @@
           <h3>Enter version {{ version }} horcruxes</h3>
         </div>
         <form class="panel-body" method="post" action="{% url 'horcrux:combine' %}">
+          {% csrf_token %}
           {% if version == 3 %}
             <p>You have two options: enter the words of each horcrux, or the code. They both represent the same thing, but the words are easier to type.<p>
+            <p>You should only have to enter {{ share_nums|length|add:"-1" }} horcruxes. The {{ share_nums|length|ordinal }} fields are only in case of a server error that means one more is required.</p>
             <h4>Words</h4>
             <p>Select the number for each horcrux and enter its words. Make sure to separate each word with a space.</p>
+            <p>Here's an example of how a properly filled-in field should look:</p>
+            <span class="share-ids">
+              <select>
+                <option value="7">7</option>
+                <option value="8" selected>8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </span>
+            <input type="text" class="share-input share-words" readonly value="rebound overlaid mastiff ebony emphasis rebate curfew">
             <div>
               <label class="share-ids">number</label>
               <label class="share-words">words</label>
             </div>
             {% for i in share_nums %}
               <div>
-              <span class="share-ids">
-                <select name="share{{ i }}-id">
-                  <option value="1">1</option>
-                  <option value="2" {% if i == 1 %}selected{% endif %}>2</option>
-                  <option value="3" {% if i == 2 %}selected{% endif %}>3</option>
-                  <option value="4" {% if i == 3 %}selected{% endif %}>4</option>
-                  <option value="5" {% if i == 4 %}selected{% endif %}>5</option>
-                  <option value="6" {% if i == 5 %}selected{% endif %}>6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </span>
-              <input type="text" name="share{{ i }}-words" class="share-input share-words" autocomplete="off">
+                <span class="share-ids">
+                  <select name="share{{ i }}-id">
+                    <option value="1">1</option>
+                    <option value="2" {% if i == 1 %}selected{% endif %}>2</option>
+                    <option value="3" {% if i == 2 %}selected{% endif %}>3</option>
+                    <option value="4" {% if i == 3 %}selected{% endif %}>4</option>
+                    <option value="5" {% if i == 4 %}selected{% endif %}>5</option>
+                    <option value="6" {% if i == 5 %}selected{% endif %}>6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                  </select>
+                </span>
+                <input type="text" name="share{{ i }}-words" class="share-input share-words" autocomplete="off">
               </div>
             {% endfor %}
           <button class="btn btn-default" type="submit">Submit</button>
           <h4>Codes</h4>
           <p>If you're having trouble with the words, you can type in the codes instead.</p>
           {% endif %}
-          <p>Include the number and dash in front of each code, e.g. "1-a9ab3fc225".</p>
-          {% csrf_token %}
+          <p>Include the number and dash in front of each code.</p>
           <input type="hidden" name="version" value="{{ version }}">
           {% if version == 1 %}
+            <p>Here's an example of how a properly filled-in field should look:</p>
+            <textarea type="text" class="share-input share-code" readonly>2-ee29f5e5946772fa746b51e0fd4bb24e36f8d2b9bc026cd9ad41758</textarea>
+            <div>
+              <label class="share-code">code</label>
+            </div>
             {% for i in share_nums %}
               <div>
-                <textarea name="share{{ i }}" class="share-input"></textarea>
+                <textarea name="share{{ i }}" class="share-input share-code"></textarea>
               </div>
             {% endfor %}
           {% elif version >= 2 %}
+            <p>Here's an example of how a properly filled-in field should look:</p>
+            <input type="text" class="share-input share-code" readonly value="2-ee29f5e5946772fa746b51">
+            <div>
+              <label class="share-code">code</label>
+            </div>
             {% for i in share_nums %}
               <div>
                 <input type="text" name="share{{ i }}" class="share-input share-code" autocomplete="off">
