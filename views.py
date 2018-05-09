@@ -31,13 +31,19 @@ ERROR_MESSAGES['single_word'] = ('Invalid words {value!r}. Looks like a single w
                                  'put spaces between the words.')
 ERROR_MESSAGES['invalid_word'] = 'Invalid word {value!r}. Did you type it correctly?'
 ERROR_MESSAGES['invalid_senary'] = 'Error converting words to decryption key.'
-ERROR_MESSAGES['too_few_shares'] = 'Too few horcruxes entered. I only saw {value!r}.'
+ERROR_MESSAGES['too_few_shares'] = ('Too few horcruxes entered. I only saw {value!r}, but you need '
+                                    'to enter {value2!r}.')
+ERROR_MESSAGES['too_few_shares_and_missing_share1'] = ('Could not find the horcrux stored on the '
+                                                       'server. This means you now need to enter '
+                                                       '{value2!r} horcruxes (I only saw {value!r}).')
 ERROR_MESSAGES['binary'] = 'Wrong input type. Are you sure you selected the right version?'
-ERROR_MESSAGES['inconsistent'] = 'Inconsistent codes. Did you enter one of them twice?'
-ERROR_MESSAGES['syntax'] = ('Invalid code(s). Make sure there was no typo, and that you included '
-                            'the number and dash in front of each one.')
-ERROR_MESSAGES['lengths'] = ("Invalid code(s). Were they different lengths? Check to make sure you "
-                             "didn't miss a character.")
+ERROR_MESSAGES['inconsistent'] = 'Inconsistent horcruxes. Did you enter one of them twice?'
+ERROR_MESSAGES['syntax'] = ('Invalid horcrux(es). Make sure there was no typo, and that you '
+                            'included the number and dash in front of each one.')
+ERROR_MESSAGES['different_lengths'] = ("Invalid horcrux(es). Were they different lengths? Check for "
+                                       "typos and to make sure you didn't miss a character.")
+ERROR_MESSAGES['invalid_length'] = ("Invalid horcrux(es). Check for typos. If you entered codes, you "
+                                    "may have missed or added a character.")
 ERROR_MESSAGES['ssss_missing'] = ('Could not combine the horcruxes. The "ssss" program may not be '
                                   'installed on the server.')
 ERROR_MESSAGES['ssss_command'] = ('Could not combine the horcruxes. There was a problem executing '
@@ -45,7 +51,8 @@ ERROR_MESSAGES['ssss_command'] = ('Could not combine the horcruxes. There was a 
 ERROR_MESSAGES['ssss_output_unknown'] = ('Could not combine the horcruxes. There was a problem '
                                          'interpreting the output of the "ssss" program.')
 ERROR_MESSAGES['wrong_key'] = ('Combined the horcruxes, but got the wrong output. Check for typos '
-                               'in the codes you entered (including in the numbers before the dashes).')
+                               'in the words or codes you entered. If you entered codes, also check '
+                               'the numbers before the dashes.')
 ERROR_MESSAGES['empty_vault'] = ('Successfully combined the horcruxes and decrypted the vault file '
                                  'on the server, but it was empty.')
 
@@ -85,6 +92,7 @@ def combine(request):
   params.add('version', type=int, choices=(1, 2, 3))
   params.parse(request.POST)
   error = None
+  used_server_share = False
   secrets = {'lastpass_email':settings.PERSONAL_EMAIL, 'accounts_link':settings.ACCOUNTS_LINK}
   threshold = THRESHOLDS[params['version']]
   try:
@@ -111,11 +119,22 @@ def combine(request):
         try:
           share1 = read_share(SHARE1_PATH)
           shares.append(share1)
-        except HorcruxError:
+          used_server_share = True
+        except HorcruxError as exception:
+          log.error(exception.message)
           if len(shares) < threshold:
-            raise
+            raise HorcruxError('too_few_shares_and_missing_share1',
+                               'User entered {} shares, but missing share1 means {} are needed.'
+                               .format(len(shares), threshold),
+                               value=len(shares), value2=threshold)
       # Combine the shares and get the passwords from the vault.
-      vault_password = combine_shares(shares, threshold, hex=True)
+      try:
+        vault_password = combine_shares(shares, threshold, hex=True)
+      except HorcruxError as exception:
+        if exception.type == 'too_few_shares' and used_server_share:
+          exception.value -= 1
+          exception.value2 -= 1
+        raise exception
       if os.path.exists(VAULT_PATH):
         plaintext = decrypt_vault(VAULT_PATH, vault_password)
         secrets.update(parse_vault(plaintext))
@@ -230,7 +249,13 @@ def combine_shares(shares, threshold, hex=True):
     stdout, stderr = process.communicate(input=stdin)
   except subprocess.SubprocessError as error:
     raise HorcruxError('ssss_command', 'Problem executing ssss: {}'.format(error.args[0]))
-  return parse_ssss_output(stderr)
+  try:
+    return parse_ssss_output(stderr)
+  except HorcruxError as exception:
+    if exception.type == 'invalid_length':
+      lengths = [str(len(share)) for share in shares]
+      exception.message = 'Share hex values had invalid lengths: '+', '.join(lengths)
+    raise exception
 
 
 def parse_ssss_output(stderr_bytes):
@@ -247,11 +272,13 @@ def parse_ssss_output(stderr_bytes):
       if 'shares inconsistent' in line:
         raise HorcruxError('inconsistent', 'Inconsistent combination of shares.')
       elif 'invalid syntax' in line:
-        raise HorcruxError('syntax', 'Invalid shares.')
+        raise HorcruxError('syntax', 'Invalid share syntax.')
       elif 'invalid share' in line:
-        raise HorcruxError('syntax', 'Invalid shares.')
+        raise HorcruxError('syntax', 'Invalid share.')
       elif 'different security levels' in line:
-        raise HorcruxError('lengths', 'Shares have different security levels (lengths).')
+        raise HorcruxError('different_lengths', 'Shares have different security levels (lengths).')
+      elif 'illegal length' in line:
+        raise HorcruxError('invalid_length', 'Shares had invalid lengths.')
     elif line.startswith('Resulting secret: '):
       secret = line[18:]
   if secret is None:
