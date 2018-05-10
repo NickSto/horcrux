@@ -22,39 +22,40 @@ WORD_LIST_PATH = os.path.join(SCRIPT_DIR, 'words.txt')
 SHARE1_PATH = os.path.join(SCRIPT_DIR, 'share1.txt')
 VAULT_PATH = os.path.join(SCRIPT_DIR, 'vault.enc')
 
-ERROR_MESSAGES = collections.defaultdict(lambda: 'Encountered error {type!r}: {message}.')
-ERROR_MESSAGES['share1_missing'] = ('Could not find the horcrux stored on the server. You will need '
-                                    'to enter 1 additional horcrux.')
-ERROR_MESSAGES['share1_permissions'] = ('Could not read the horcrux stored on the server. You will '
-                                        'need to enter 1 additional horcrux.')
-ERROR_MESSAGES['single_word'] = ('Invalid words {value!r}. Looks like a single word. Make sure to '
-                                 'put spaces between the words.')
-ERROR_MESSAGES['invalid_word'] = 'Invalid word {value!r}. Did you type it correctly?'
-ERROR_MESSAGES['invalid_senary'] = 'Error converting words to decryption key.'
-ERROR_MESSAGES['too_few_shares'] = ('Too few horcruxes entered. I only saw {value!r}, but you need '
-                                    'to enter {value2!r}.')
-ERROR_MESSAGES['too_few_shares_and_missing_share1'] = ('Could not find the horcrux stored on the '
-                                                       'server. This means you now need to enter '
-                                                       '{value2!r} horcruxes (I only saw {value!r}).')
-ERROR_MESSAGES['binary'] = 'Wrong input type. Are you sure you selected the right version?'
-ERROR_MESSAGES['inconsistent'] = 'Inconsistent horcruxes. Did you enter one of them twice?'
-ERROR_MESSAGES['syntax'] = ('Invalid horcrux(es). Make sure there was no typo, and that you '
-                            'included the number and dash in front of each one.')
-ERROR_MESSAGES['different_lengths'] = ("Invalid horcrux(es). Were they different lengths? Check for "
-                                       "typos and to make sure you didn't miss a character.")
-ERROR_MESSAGES['invalid_length'] = ("Invalid horcrux(es). Check for typos. If you entered codes, you "
-                                    "may have missed or added a character.")
-ERROR_MESSAGES['ssss_missing'] = ('Could not combine the horcruxes. The "ssss" program may not be '
-                                  'installed on the server.')
-ERROR_MESSAGES['ssss_command'] = ('Could not combine the horcruxes. There was a problem executing '
-                                  'the "ssss" program on the server.')
-ERROR_MESSAGES['ssss_output_unknown'] = ('Could not combine the horcruxes. There was a problem '
-                                         'interpreting the output of the "ssss" program.')
-ERROR_MESSAGES['wrong_key'] = ('Combined the horcruxes, but got the wrong output. Check for typos '
-                               'in the words or codes you entered. If you entered codes, also check '
-                               'the numbers before the dashes.')
-ERROR_MESSAGES['empty_vault'] = ('Successfully combined the horcruxes and decrypted the vault file '
-                                 'on the server, but it was empty.')
+DEFAULT_ERROR = 'Encountered error {type!r}: {message}.'
+ERROR_MESSAGES = {
+  'share1_missing': 'Could not find the horcrux stored on the server. You will need to enter 1 '
+                    'additional horcrux.',
+  'share1_permissions': 'Could not read the horcrux stored on the server. You will need to enter '
+                        '1 additional horcrux.',
+  'single_word': 'Invalid words {value!r}. Looks like a single word. Make sure to put spaces '
+                 'between the words.',
+  'invalid_word': 'Invalid word {value!r}. Did you type it correctly?',
+  'invalid_senary': 'Error converting words to decryption key.',
+  'too_few_shares': 'Too few horcruxes entered. I only saw {value!r}, but you need to enter '
+                    '{value2!r}.',
+  'too_few_shares_and_missing_share1': 'Could not find the horcrux stored on the server. This '
+                                       'means you now need to enter {value2!r} horcruxes (I only '
+                                       'saw {value!r}).',
+  'binary': 'Wrong input type. Are you sure you selected the right version?',
+  'inconsistent': 'Inconsistent horcruxes. Did you enter one of them twice?',
+  'syntax': 'Invalid horcrux(es). Make sure there was no typo, and that you included the number '
+            'and dash in front of each one.',
+  'different_lengths': "Invalid horcrux(es). Were they different lengths? Check for typos and to "
+                       "make sure you didn't miss a character.",
+  'invalid_length': "Invalid horcrux(es). Check for typos. If you entered codes, you may have "
+                    "missed or added a character.",
+  'ssss_missing': 'Could not combine the horcruxes. The "ssss" program may not be installed on '
+                  'the server.',
+  'ssss_command': 'Could not combine the horcruxes. There was a problem executing the "ssss" '
+                  'program on the server.',
+  'ssss_output_unknown': 'Could not combine the horcruxes. There was a problem interpreting the '
+                         'output of the "ssss" program.',
+  'wrong_key': 'Combined the horcruxes, but got the wrong output. Check for typos in the words or '
+               'codes you entered. If you entered codes, also check the numbers before the dashes.',
+  'empty_vault': 'Successfully combined the horcruxes and decrypted the vault file on the server, '
+                 'but it was empty.',
+}
 
 
 class HorcruxError(Exception):
@@ -145,7 +146,7 @@ def combine(request):
       return HttpResponseRedirect(reverse('horcrux:main'))
   except HorcruxError as exception:
     log.error('HorcruxError {!r}: {}'.format(exception.type, exception.message))
-    error = ERROR_MESSAGES[exception.type].format(**vars(exception))
+    error = ERROR_MESSAGES.get(exception.type, DEFAULT_ERROR).format(**vars(exception))
     log.error(error)
   plural = params['version'] > 2
   context = {'version':params['version'], 'secrets':secrets, 'plural':plural, 'error':error}
