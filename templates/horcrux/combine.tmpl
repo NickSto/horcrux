@@ -30,22 +30,6 @@
               Make sure to include spaces!
             </p>
           {% endif %}
-          {% if secrets.lastpass %}
-            <section class="password lastpass">
-              <h4>Lastpass</h4>
-              <div class="secret">
-                <code>{{ secrets.lastpass }}</code>
-              </div>
-              <div class="instructions">
-                <p>My Lastpass username is {{ secrets.lastpass_email }}. You can log in at <a href="https://lastpass.com" target="_blank">lastpass.com</a>.</p>
-                <p>If it prompts you to enter values from a "grid", that's a second factor authentication method you can read about <a href="https://helpdesk.lastpass.com/multifactor-authentication-options/grid-multifactor-authentication/" target="_blank">here</a>. You'll need my grid, which is stored in the Veracrypt file.</p>
-                <p>The passwords to almost all my accounts should be in Lastpass. But getting into some accounts requires something in addition to Lastpass:</p>
-                <p>For some important ones like banks, you need to add something extra to the password stored in Lastpass. The way to do that is explained in the Veracrypt file. You should be able to tell when this is required because the site's Lastpass entry will be in the "lastpass + extra" folder.</p>
-                <p>Some accounts require 2-factor authentication. The second factor is often a text message sent to my phone. By the way, my phone PIN is stored in LastPass in a "Secure Note". But sometimes the second factor is a code from the Google Authenticator app (Download for <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_US" target="_blank">Android</a> or <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8" target="_blank">iPhone</a>). For some accounts, you should be able to set up Google Authenticator to give you the code by scanning a barcode I've saved in the Veracrypt file. The barcode should be an image file named by website. Just tap the red plus in the app, then scan the barcode.</p>
-                <p>Detailed information on all my accounts, plus other things like computer logins and encrypted files and hard drives, are in <a href="{{ secrets.accounts_link }}" target="_blank">this text file</a>.</p>
-              </div>
-            </section>
-          {% endif %}
           {% if secrets.veracrypt %}
             <section class="password veracrypt">
               <h4>Veracrypt</h4>
@@ -53,10 +37,47 @@
                 <code>{{ secrets.veracrypt }}</code>
               </div>
               <div class="instructions">
-                <p>You can get the Veracrypt file <a href="/static/media/master.hc" target="_blank">here</a>.</p>
-                <p>To open it, you'll need to install Veracrypt from <a href="https://www.veracrypt.fr/en/Downloads.html" target="_blank">here</a>.</p>
-                <p>You can find instructions on using Veracrypt to open the file <a href="https://www.veracrypt.fr/en/Beginner%27s%20Tutorial.html" target="_blank">here</a>, starting at step 13. Don't worry about the "PRF algorithm" in step 18. Just leave it on "Autodetection".</p>
-                <p>This contains all passwords of mine that aren't stored in Lastpass, plus some extra info.</p>
+                <section class="subsection">
+                  <h5>Opening the master Veracrypt file</h5>
+                  <p>You can download the Veracrypt file from <a target="_blank" href="/static/media/master.hc">here</a>.</p>
+                  <p>To open it, you'll need to install Veracrypt from <a target="_blank" href="https://www.veracrypt.fr/en/Downloads.html">here</a>.</p>
+                  <p>You can find instructions on using Veracrypt to open the file <a target="_blank" href="https://www.veracrypt.fr/en/Beginner%27s%20Tutorial.html">here</a>, starting at step 13. Don't worry about the "PRF algorithm" in step 18. Just leave it on "Autodetection".</p>
+                  <p>The file contains all passwords of mine that aren't stored in Lastpass, plus some extra info.</p>
+                </section>
+                <section class="subsection">
+                  <h5>Logging into my accounts</h5>
+                  <p>For most of my accounts, all you need is the username and password stored in Lastpass. But some aren't so simple.</p>
+                  <p><a target="_blank" href="{{ secrets.accounts_link }}">This text file</a> will tell you what you need to get into each account. If I have one, you'll see a "password:" line that tells you where to get the password. Here's what different values mean:</p>
+                  <ul>
+                    <li><strong>lastpass:</strong> The password is stored in Lastpass.</li>
+                    <li><strong>lastpass + site-specific:</strong> Part of the password is stored in Lastpass. But you need to add something extra onto the end. The way to do that is explained in the Veracrypt file.</li>
+                    <li>If the password is instead a name like "most secure", it's one from the Veracrypt file. Look up the name in there and you'll find it.</li>
+                  </ul>
+                  <p>Some accounts require 2-factor authentication. For many accounts, I've stored the necessary info for the second factor in the Veracrypt file, in the "2nd factors" folder. The files in there have names like "Backup Codes - Google - nstoler.png". The "Backup Codes" part tells you which type of second factor this is for. "Google" is the website, and "nstoler" is the account it's for (if I have multiple at that website).</p>
+                  <p>There are a number of different types of second factors:</p>
+                  <ul>
+                    <li><strong>Text message:</strong> When logging in, the site texts a code to my phone and you enter it in the webpage. If you have my phone, you can open it with the PIN stored in LastPass (in a "Secure Note").</li>
+                    <li><strong>Backup codes:</strong> This might be the easiest one. All you need is the file in Veracrypt. In the case of Google, after you enter the password, it'll ask you for a 2-step verification code. Click "More options", and then select the backup codes option. Then you can enter any of the codes from the file.</li>
+                    <li><strong>Google Authenticator:</strong> Sometimes the second factor is a code from the Google Authenticator app (Download for <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_US">Android</a> or <a target="_blank" href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iPhone</a>). If there's a "Google Authenticator" file for this account in Veracrypt, it should be a barcode you can scan with the app. Open Google Authenticator, tap the red plus in the app, then scan the barcode. Then it'll start showing you codes you can enter when you log in.</li>
+                  </ul>
+                </section>
+              </div>
+            </section>
+          {% endif %}
+          {% if secrets.lastpass %}
+            <section class="password lastpass">
+              <h4>Lastpass</h4>
+              <div class="secret">
+                <code>{{ secrets.lastpass }}</code>
+              </div>
+              <div class="instructions">
+                <section class="subsection">
+                  <h5>Logging into Lastpass</h5>
+                  <p>My Lastpass username is {{ secrets.lastpass_email }}. You can log in at <a target="_blank" href="https://lastpass.com">lastpass.com</a>, but you'll need a couple more things first:</p>
+                  <p>Since you're logging in from a computer that's not mine, after you submit the password, Lastpass will email me and it won't let you log in until someone clicks a link in that email.</p>
+                  <p>So this requires access to my email account. Check the ">Email addresses" section in <a target="_blank" href="{{ secrets.accounts_link }}">accounts.txt</a> for the password to {{ secrets.lastpass_email }}. Then go to <a target="_blank" href="https://mail.google.com/">Gmail</a> and log in with the username and password. Then, either enter a Google Authenticator code or a backup code (see "Logging into my accounts" above). Once you're in, open the email from Lastpass and click the link.</p>
+                  <p>Then, Lastpass will prompt you to enter values from a "grid". That's a second factor authentication method you can read about <a target="_blank" href="https://helpdesk.lastpass.com/multifactor-authentication-options/grid-multifactor-authentication/">here</a>. My grid is stored in the Veracrypt file.</p>
+                </section>
               </div>
             </section>
           {% endif %}
