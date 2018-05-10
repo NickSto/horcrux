@@ -50,8 +50,8 @@
                   <p><a target="_blank" href="{{ secrets.accounts_link }}">This text file</a> will tell you what you need to get into each account. If I have one, you'll see a "password:" line that tells you where to get the password. Here's what different values mean:</p>
                   <ul>
                     <li><strong>lastpass:</strong> The password is stored in Lastpass.</li>
-                    <li><strong>lastpass + site-specific:</strong> Part of the password is stored in Lastpass. But you need to add something extra onto the end. The way to do that is explained in the Veracrypt file.</li>
-                    <li>If the password is instead a name like "most secure", it's one from the Veracrypt file. Look up the name in there and you'll find it.</li>
+                    <li><strong>lastpass + site-specific:</strong> Part of the password is stored in Lastpass. But you need to add something extra onto the end. The way to do that is explained in "passwords.txt" in the Veracrypt file.</li>
+                    <li>If the password is instead a name like "most secure", it's one from the Veracrypt file. Look up the name in "passwords.txt" and you'll find it.</li>
                   </ul>
                   <p>Some accounts require 2-factor authentication. For many accounts, I've stored the necessary info for the second factor in the Veracrypt file, in the "2nd factors" folder. The files in there have names like "Backup Codes - Google - nstoler.png". The "Backup Codes" part tells you which type of second factor this is for. "Google" is the website, and "nstoler" is the account it's for (if I have multiple at that website).</p>
                   <p>There are a number of different types of second factors:</p>
@@ -76,7 +76,7 @@
                   <p>My Lastpass username is {{ secrets.lastpass_email }}. You can log in at <a target="_blank" href="https://lastpass.com">lastpass.com</a>, but you'll need a couple more things first:</p>
                   <p>Since you're logging in from a computer that's not mine, after you submit the password, Lastpass will email me and it won't let you log in until someone clicks a link in that email.</p>
                   <p>So this requires access to my email account. Check the ">Email addresses" section in <a target="_blank" href="{{ secrets.accounts_link }}">accounts.txt</a> for the password to {{ secrets.lastpass_email }}. Then go to <a target="_blank" href="https://mail.google.com/">Gmail</a> and log in with the username and password. Then, either enter a Google Authenticator code or a backup code (see "Logging into my accounts" above). Once you're in, open the email from Lastpass and click the link.</p>
-                  <p>Then, Lastpass will prompt you to enter values from a "grid". That's a second factor authentication method you can read about <a target="_blank" href="https://helpdesk.lastpass.com/multifactor-authentication-options/grid-multifactor-authentication/">here</a>. My grid is stored in the Veracrypt file.</p>
+                  <p>Then, Lastpass will prompt you to enter values from a "grid". That's a second factor authentication method you can read about <a target="_blank" href="https://helpdesk.lastpass.com/multifactor-authentication-options/grid-multifactor-authentication/">here</a>. My grid is stored in the Veracrypt file, in the "2nd factors" folder.</p>
                 </section>
               </div>
             </section>
