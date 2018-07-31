@@ -67,14 +67,11 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
-  if args.words or args.in_format == 'words' or args.out_format == 'words':
-    if args.word_list:
-      word_list = args.word_list
-    else:
-      script_dir = os.path.dirname(os.path.realpath(__file__))
-      word_list = os.path.join(script_dir, WORDLIST_NAME)
-    if not os.path.isfile(word_list):
-      raise IOError('Word list "{}" not found.'.format(word_list))
+  if args.word_list:
+    word_list = args.word_list
+  else:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    word_list = os.path.join(script_dir, WORDLIST_NAME)
 
   if args.input:
     input_raw = ' '.join(args.input)
