@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from . import convert
-from utils import QueryParams
+from utils.queryparams import QueryParams
 from utillib import crypto
 log = logging.getLogger(__name__)
 
