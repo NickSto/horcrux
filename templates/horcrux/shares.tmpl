@@ -20,8 +20,8 @@
         <form class="panel-body" method="post" action="{% url 'horcrux:combine' %}">
           {% csrf_token %}
           {% if version == 3 %}
-            <p>You have two options: enter the words of each horcrux, or the code. They both represent the same thing, but the words are easier to type.<p>
-            <p>You should only have to enter {{ share_nums|length|add:"-1" }} horcruxes. The {{ share_nums|length|ordinal }} fields are only in case of a server error that means one more is required.</p>
+            <p>You have two options: enter the words of each horcrux, or the code. They both encode the same information, but the words are easier to type.<p>
+            <p>You should only have to enter {{ share_nums|length|add:"-1" }} horcruxes. The {{ share_nums|length|ordinal }} field is there just in case of a problem with the server, which would mean an extra piece is required.</p>
             <h4>Words</h4>
             <p>Select the number for each horcrux and enter its words. Make sure to separate each word with a space.</p>
             <p>Here's an example of how a properly filled-in field should look:</p>
@@ -35,7 +35,7 @@
             </span>
             <input type="text" class="share-input share-words" readonly value="rebound overlaid mastiff ebony emphasis rebate curfew">
             <div>
-              <label class="share-ids">number</label>
+              <label class="share-ids">piece</label>
               <label class="share-words">words</label>
             </div>
             {% for i in share_nums %}
@@ -69,7 +69,7 @@
             <p>Here's an example of how a properly filled-in field should look:</p>
             <textarea type="text" class="share-input share-code" readonly>2-ee29f5e5946772fa746b51e0fd4bb24e36f8d2b9bc026cd9ad41758</textarea>
             <div>
-              <label class="share-code">code</label>
+              <label class="share-code">codes</label>
             </div>
             {% for i in share_nums %}
               <div>
@@ -78,9 +78,9 @@
             {% endfor %}
           {% elif version >= 2 %}
             <p>Here's an example of how a properly filled-in field should look:</p>
-            <input type="text" class="share-input share-code" readonly value="2-ee29f5e5946772fa746b51">
+            <input type="text" class="share-input share-code" readonly value="02-ee29f5e5946772fa746b51">
             <div>
-              <label class="share-code">code</label>
+              <label class="share-code">codes</label>
             </div>
             {% for i in share_nums %}
               <div>
