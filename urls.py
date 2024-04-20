@@ -1,11 +1,11 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from . import views
 
 app_name = 'horcrux'
 
 urlpatterns = [
-  url(r'^$', views.main, name='main'),
-  url(r'^shares$', views.shares, name='shares'),
-  url(r'^combine$', views.combine, name='combine'),
+  re_path(r'^$', views.main, name='main'),
+  re_path(r'^shares$', views.shares, name='shares'),
+  re_path(r'^combine$', views.combine, name='combine'),
 ]
